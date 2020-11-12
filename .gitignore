@@ -1,3 +1,20 @@
-__pycache__
-tests/output/
-tests/plots/
+# Thumbnails
+_*
+
+# Packages
+**/output
+**/plots
+**/*.egg
+**/*.egg-info
+**/.astropy
+**/.cache
+**/.config
+**/.wget*
+**/pytest_cache
+**/dist
+**/eggs
+**/dust
+**/build
+
+# Unit test / coverage reports
+**/.coverage

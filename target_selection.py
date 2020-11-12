@@ -26,11 +26,11 @@ class TargetSelection(Catalogue):
         """
         @mask.setter
         def mask(self,x):
-        	self['mask'] = x
+            self['mask'] = x
 
         @property
         def mask(self):
-        	return self['mask']
+            return self['mask']
         """
         @property
         def south(self):
