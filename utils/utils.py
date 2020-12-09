@@ -104,14 +104,14 @@ def overlap(a,b):
     Warning: makes sense if and only if a and b elements are unique.
     Taken from https://www.followthesheep.com/?p=1366.
     """
-    a1=np.argsort(a)
-    b1=np.argsort(b)
+    a1 = np.argsort(a)
+    b1 = np.argsort(b)
     # use searchsorted:
-    sort_left_a=a[a1].searchsorted(b[b1], side='left')
-    sort_right_a=a[a1].searchsorted(b[b1], side='right')
+    sort_left_a = a[a1].searchsorted(b[b1], side='left')
+    sort_right_a = a[a1].searchsorted(b[b1], side='right')
     #
-    sort_left_b=b[b1].searchsorted(a[a1], side='left')
-    sort_right_b=b[b1].searchsorted(a[a1], side='right')
+    sort_left_b = b[b1].searchsorted(a[a1], side='left')
+    sort_right_b = b[b1].searchsorted(a[a1], side='right')
 
     # # which values are in b but not in a?
     # inds_b=(sort_right_a-sort_left_a==0).nonzero()[0]
@@ -119,9 +119,9 @@ def overlap(a,b):
     # inds_a=(sort_right_b-sort_left_b==0).nonzero()[0]
 
     # which values of b are also in a?
-    inds_b=(sort_right_a-sort_left_a > 0).nonzero()[0]
+    inds_b = (sort_right_a-sort_left_a > 0).nonzero()[0]
     # which values of a are also in b?
-    inds_a=(sort_right_b-sort_left_b > 0).nonzero()[0]
+    inds_a = (sort_right_b-sort_left_b > 0).nonzero()[0]
 
     return a1[inds_a], b1[inds_b]
 

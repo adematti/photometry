@@ -16,7 +16,7 @@ def get_truth():
     truth = truth[mask]
     return truth
 
-def test_predict():
+def test_map():
     #print(mc.truth.mask.sum())
     comm = utils.get_mpi_comm()
     if comm.rank == 0:
@@ -36,7 +36,7 @@ def test_predict():
     #hp.to_nbodykit()
     mc = MCTool(truth=truth,seed=42)
     mc.set_sel_params(ebvfac=1,Rv=None,sn_band_min=6,sn_flat_min=None,sn_red_min=None)
-    mc.predict(map,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift='Z')
+    mc.map(map,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift='Z')
     map.mpi_gather(root=0)
     #if comm.rank == 0: map.save(path_mctool)
 
@@ -65,6 +65,6 @@ def test_plot():
     mc()
     mc.plot_histo(path=dir_plot+'mctool.png')
 
-test_predict()
+test_map()
 test_check()
 test_plot()

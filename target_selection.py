@@ -56,7 +56,8 @@ class TargetSelection(Catalogue):
                 path_objects =  glob.glob(path_objects)
                 if len(path_objects) == 1:
                     self.columns = Catalogue.load_fits(path_objects[0]).columns
-                    mask = self.mask_in_box(*self.radecbox)
+                    mask = self.trues()
+                    if self.radecbox: mask = self.mask_in_box(*self.radecbox)
                     if self.region: mask &= self.mask_region()
                     self.logger.info('Selecting {:d}/{:d} targets.'.format(mask.sum(),mask.size))
                     self = self[mask]
@@ -126,12 +127,12 @@ class TargetSelection(Catalogue):
                 return wrapper
             return super(TargetSelection,self).__getattribute__(name)
 
-        def mask_maskbit(self,nobs=True,bits=[1,5,6,7,11,12,13]):
+        def mask_maskbit(self,key_nobs='NOBS',key_maskbits='MASKBITS',nobs=True,bits=[1,5,6,7,11,12,13]):
             mask = self.trues()
             if nobs:
-                for b in self.bands: mask &= (self['NOBS_{}'.format(b)]>0)
+                for b in self.bands: mask &= (self['{}_{}'.format(key_nobs,b)]>0)
             for bit in bits:
-                mask &= (self['MASKBITS'] & 2**bit) == 0
+                mask &= (self[key_maskbits] & 2**bit) == 0
             return mask
 
         def mask_region(self):
@@ -151,19 +152,21 @@ class TargetSelection(Catalogue):
             return self['MORPHTYPE'] == morphtype
 
         @utils.saveplot()
-        def plot_map(self,ax,prop1=None,prop2=None,propc=None,s=.2,vmin=None,vmax=None,xlim=None,ylim=None,title=None,clabel=None,**kwargs):
+        def plot_scatter(self,ax,prop1=None,prop2=None,propc=None,s=.2,vmin=None,vmax=None,color=None,xedges={},yedges={},title=None,clabel=None,**kwargs):
             if propc is not None: c = self[propc]
-            else: c = None
+            else: c = color
             sc = ax.scatter(self[prop1],self[prop2],c=c,s=s,vmin=vmin,vmax=vmax,**kwargs)
-            ax.set_xlabel(prop1)
-            ax.set_ylabel(prop2)
-            if xlim is not None: ax.set_xlim(xlim)
-            if ylim is not None: ax.set_ylim(ylim)
             if propc is not None:
                 divider = make_axes_locatable(ax)
                 cax = divider.append_axes('right',size='5%',pad=0.05)
                 cbar = plt.colorbar(sc,cax=cax)
                 if clabel: cbar.set_label(prop if not isinstance(clabel,str) else clabel,rotation=90)
+            ax.set_xlabel(prop1)
+            ax.set_ylabel(prop2)
+            xlim = Binning(samples=self[prop1],**xedges).range
+            ylim = Binning(samples=self[prop2],**yedges).range
+            ax.set_xlim(xlim)
+            ax.set_ylim(ylim)
             ax.set_title(title)
 
         @utils.saveplot()

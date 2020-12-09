@@ -86,6 +86,20 @@ class Catalogue(object):
             keep.remove(rm)
         return keep
 
+    def rename(self,field_old,field_new):
+        self.columns[field_new] = self.columns[field_old]
+        del self.columns[field_old]
+
+    def set_upper_case(self,fields=None):
+        if fields is None: fields = self.fields
+        for field in fields:
+            self.rename(field,field.upper())
+
+    def set_lower_case(self,fields=None):
+        if fields is None: fields = self.fields
+        for field in fields:
+            self.rename(field,field.lower())
+
     def to_dict(self,keep=None,remove=[]):
         keep = self.sort_fields(keep=keep,remove=remove)
         return {field:self[field] for field in keep}

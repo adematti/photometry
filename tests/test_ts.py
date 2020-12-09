@@ -28,12 +28,12 @@ def test_extinction():
 
 def test_plot():
     data = TargetSelection.load_objects(path_data,region=None)
-    data.plot_map(path=dir_plot+'map_data.png',prop1='RA',prop2='DEC',s=.2,title=None)
+    data.plot_scatter(path=dir_plot+'map_data.png',prop1='RA',prop2='DEC',s=.2,title=None)
     data.set_estimated_flux(key='EFLUX',key_flux='FLUX',key_transmission='MW_TRANSMISSION')
     data.set_mag_from_flux(key_flux='EFLUX')
     data['G-R'] = data['G']-data['R']
     data['R-Z'] = data['R']-data['Z']
-    data.plot_map(path=dir_plot+'color_data_ts.png',prop1='R-Z',prop2='G-R',s=2,title=None)
+    data.plot_scatter(path=dir_plot+'color_data_ts.png',prop1='R-Z',prop2='G-R',s=2,title=None)
     data.plot_histo(path=dir_plot+'histo_EBV_data.png',prop='EBV',title=None)
 
 def test_plot_hsc():

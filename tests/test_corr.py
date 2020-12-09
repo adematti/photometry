@@ -57,7 +57,6 @@ def test_RR():
     corr.run(show_progress=True)
     corr.save(path_corr_hp)
 
-
 def test_power():
     data = TargetSelection.load_objects(path_data,region=None)
     randoms = TargetSelection.load_objects(path_randoms,region=None)

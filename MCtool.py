@@ -59,11 +59,11 @@ class MCTool(object):
 
     def __call__(self):
         #print(self.truth.size,len(self.truth))
-        flux_shifts = self.rng.multivariate_normal(mean=self.flux_adbias,cov=self.flux_covariance,size=self.size).T
+        flux_shifts = self.rng.multivariate_normal(mean=np.zeros(self.flux_covariance.shape[0],dtype='f8'),cov=self.flux_covariance,size=self.size).T
         #print(flux_shifts.shape)
         for ib,b in enumerate(self.bands):
             #print(flux_shifts[ib].shape,self.truth['FLUX_{}'.format(b)].shape,self.sim['MW_TRANSMISSION_{}'.format(b)].shape,self.flux_mulbias[ib].shape)
-            self.sim['FLUX_{}'.format(b)] = self.truth['FLUX_{}'.format(b)]*self.sim['MW_TRANSMISSION_{}'.format(b)]*self.flux_mulbias[ib] + flux_shifts[ib]
+            self.sim['FLUX_{}'.format(b)] = self.truth['FLUX_{}'.format(b)]*self.sim['MW_TRANSMISSION_{}'.format(b)]*self.flux_mulbias[...,ib] + self.flux_adbias[...,ib] + flux_shifts[ib]
         self.sim.set_estimated_transmission(ebvfac=self.ebvfac,Rv=self.Rv,key='EMW_TRANSMISSION')
         self.sim.set_estimated_flux(key='EFLUX',key_transmission='EMW_TRANSMISSION',key_flux='FLUX')
         #for b in self.bands:
@@ -97,7 +97,7 @@ class MCTool(object):
         new.__dict__.update(self.__dict__)
         return new
 
-    def predict(self,catalogue,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift=None):
+    def map(self,catalogue,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift=None):
         mask = np.all([catalogue['{}_{}'.format(key_depth,b)]>0. for b in self.bands],axis=0)
         catalogue[key_efficiency] = catalogue.zeros()
         if key_redshift: catalogue[key_redshift] = -catalogue.ones()

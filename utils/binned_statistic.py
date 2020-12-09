@@ -14,9 +14,9 @@ class Binning(object):
                     range[-1] = range[-1]+(range[-1]-range[0])*1e-5
                 else:
                     range = np.percentile(samples,q=np.array(quantiles)*100.,axis=-1).T
-            if range[0] is None: range[0] = samples.min()
+            if range[0] is None: range[0] = samples.min(axis=-1)
             if range[-1] is None:
-                range[-1] = samples.max()
+                range[-1] = samples.max(axis=-1)
                 range[-1] = range[-1]+(range[-1]-range[0])*1e-5
             if isinstance(nbins,np.integer):
                 if scale == 'linear':
