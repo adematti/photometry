@@ -88,7 +88,7 @@ class Catalogue(object):
 
     def rename(self,field_old,field_new):
         self.columns[field_new] = self.columns[field_old]
-        del self.columns[field_old]
+        if field_new != field_old: del self.columns[field_old]
 
     def set_upper_case(self,fields=None):
         if fields is None: fields = self.fields
@@ -115,24 +115,31 @@ class Catalogue(object):
 
     @classmethod
     def load(cls,path,**kwargs):
-        if path.endswith('.fits') or path.endswith('.fits.gz'):
+        if any(path.endswith(ext) for ext in ['.fits','.fits.gz','.fits.fz']):
             return cls.load_fits(path,**kwargs)
         return cls.load_npy(path,**kwargs)
 
     def save(self,path,**kwargs):
-        if path.endswith('.fits') or path.endswith('.fits.gz'):
+        if any(path.endswith(ext) for ext in ['.fits','.fits.gz','.fits.fz']):
             self.save_fits(path,**kwargs)
         else:
             self.save_npy(path,**kwargs)
 
     @classmethod
-    def load_fits(cls,path,ext=1,keep=None):
+    def load_fits(cls,path,keep=None,**kwargs):
         self = cls()
         self.logger.info('Loading catalogue {}.'.format(path))
-        array,header = fitsio.read(path,header=True)
+        array,header = fitsio.read(path,header=True,**kwargs)
         self = cls.from_array(array,keep=keep)
         self.header = header
         return self
+
+    @classmethod
+    def load_fits_header(cls,path,**kwargs):
+        self = cls()
+        self.logger.info('Loading header of catalogue {}.'.format(path))
+        header = fitsio.read_header(path,**kwargs)
+        return header
 
     @classmethod
     def load_npy(cls,path,fields=None):

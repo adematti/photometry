@@ -35,8 +35,8 @@ def test_map():
     map = Catalogue.mpi_scatter(map,root=0,mask=mask)
     #hp.to_nbodykit()
     mc = MCTool(truth=truth,seed=42)
-    mc.set_sel_params(ebvfac=1,Rv=None,sn_band_min=6,sn_flat_min=None,sn_red_min=None)
-    mc.map(map,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift='Z')
+    mc.set_sel_params(sn_band_min=6,sn_flat_min=None,sn_red_min=None)
+    mc.map(map,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift='Z',set_transmission=True)
     map.mpi_gather(root=0)
     #if comm.rank == 0: map.save(path_mctool)
 
@@ -46,8 +46,9 @@ def test_check():
     mc.set_sim_params(flux_covariance=0.,flux_adbias=0.,flux_mulbias=1.)
     mc.sim['EBV'] = mc.sim.zeros()
     mc.sim.set_estimated_transmission(key='MW_TRANSMISSION')
+    mc.sim.set_estimated_transmission(key='EMW_TRANSMISSION')
     #print(mc.sim['MW_TRANSMISSION_G'])
-    mc.set_sel_params(ebvfac=1,Rv=None,sn_band_min=0,sn_flat_min=None,sn_red_min=None)
+    mc.set_sel_params(sn_band_min=0,sn_flat_min=None,sn_red_min=None)
     mc()
     for b in mc.bands:
         assert np.all(mc.sim['EFLUX_{}'.format(b)] == mc.sim['FLUX_{}'.format(b)])
@@ -60,8 +61,9 @@ def test_plot():
     mc.set_sim_params(flux_covariance=1./np.array([1487.998, 515.4879, 197.86513]),flux_adbias=0.,flux_mulbias=1.)
     mc.sim['EBV'] = mc.sim.zeros()
     mc.sim.set_estimated_transmission(key='MW_TRANSMISSION')
+    mc.sim.set_estimated_transmission(key='EMW_TRANSMISSION')
     #print(mc.sim['MW_TRANSMISSION_G'])
-    mc.set_sel_params(ebvfac=1,Rv=None,sn_band_min=6,sn_flat_min=None,sn_red_min=None)
+    mc.set_sel_params(sn_band_min=6,sn_flat_min=None,sn_red_min=None)
     mc()
     mc.plot_histo(path=dir_plot+'mctool.png')
 

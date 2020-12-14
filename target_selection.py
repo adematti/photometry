@@ -37,25 +37,37 @@ class TargetSelection(Catalogue):
             return self.region == 'S'
 
         @classmethod
-        def load_targets(cls,path_dir,**kwargs):
+        def load_targets(cls,path_dir,quick=False,downsample=None,keep=None,**kwargs):
             from desitarget import targetmask
             from desitarget.io import read_targets_in_box
             self = cls(**kwargs)
-            self.columns = Catalogue.from_array(read_targets_in_box(path_dir,radecbox=self.radecbox)).columns
-            mask = (self['DESI_TARGET'] & targetmask.desi_mask[self.tracer] > 0)
+            self.columns = Catalogue.from_array(read_targets_in_box(path_dir,radecbox=self.radecbox,columns=keep,quick=quick,downsample=downsample)).columns
+            if 'SV1_DESI_TARGET' in self:
+                self.logger.info('Selecting {} in SV1.'.format(self.tracer))
+                from desitarget.sv1 import sv1_targetmask
+                mask = (self['DESI_TARGET_SV1'] & sv1_targetmask.desi_mask[self.tracer] > 0)
+            else:
+                self.logger.info('Selecting {} in nominal.'.format(self.tracer))
+                mask = (self['DESI_TARGET'] & targetmask.desi_mask[self.tracer] > 0)
             if self.region: mask &= self.mask_region()
             self.logger.info('Selecting {:d}/{:d} targets.'.format(mask.sum(),mask.size))
             return self[mask]
 
         @classmethod
-        def load_objects(cls,path_objects,**kwargs):
+        def load_objects(cls,path_objects,downsample=None,**kwargs):
             self = cls(**kwargs)
             if isinstance(path_objects,list):
                 for path in path_objects: self += cls.load_objects(path,**kwargs)
             else:
                 path_objects =  glob.glob(path_objects)
                 if len(path_objects) == 1:
-                    self.columns = Catalogue.load_fits(path_objects[0]).columns
+                    rows = None
+                    self.columns = Catalogue.load_fits(path_objects[0],rows=rows).columns
+                    if downsample is not None:
+                        # same as in https://github.com/desihub/desitarget/blob/master/py/desitarget/io.py
+                        np.random.seed(616)
+                        rows = np.random.choice(self.size,self.size//downsample,replace=False)
+                        self = self[rows]
                     mask = self.trues()
                     if self.radecbox: mask = self.mask_in_box(*self.radecbox)
                     if self.region: mask &= self.mask_region()
@@ -71,7 +83,7 @@ class TargetSelection(Catalogue):
         def mag_from_flux(self,b,key_flux='FLUX'):
             return utils.flux_to_mag(self['{}_{}'.format(key_flux,b)])
 
-        def estimated_transmission(self,b,ebvfac=1.,Rv=3.1):
+        def estimated_transmission(self,b,ebvfac=1.,Rv=3.1,key_ebv='EBV'):
             coeffs = {b:self.EXT_COEFFS[b]*ebvfac for b in self.EXT_COEFFS}
             if Rv is not None:
                 if Rv < 3.1:
@@ -86,10 +98,14 @@ class TargetSelection(Catalogue):
                     coeffs['R'] += (2.205-2.176)*(Rv-3.1)*ebvfac
                     coeffs['Z'] += (1.236-1.217)*(Rv-3.1)*ebvfac
                     coeffs['W1'] += (-.05)*(Rv-3.1)*ebvfac
-            return 10**(-0.4*coeffs[b]*self['EBV'])
+            return 10**(-0.4*coeffs[b]*self[key_ebv])
 
         def estimated_flux(self,b,key_transmission='EMW_TRANSMISSION',key_flux='FLUX'):
             return self['{}_{}'.format(key_flux,b)]/self['{}_{}'.format(key_transmission,b)]
+
+        def set_ebv(self,key='EBV',key_ra='RA',key_dec='DEC'):
+            from desiutil import dust
+            self[key] = dust.ebv(self[key_ra],self[key_dec])
 
         def set_flux_from_mag(self,key='FLUX'):
             for b in self.bands:
@@ -112,7 +128,7 @@ class TargetSelection(Catalogue):
                 return super(TargetSelection,self).__getitem__(name)
             except KeyError:
                 if self.case_sensitive:
-                    raise KeyError('You may try case_sensitive = False.'.format(name))
+                    raise KeyError('There is no field {} in the data. You may try case_sensitive = False.'.format(name))
                 try:
                     return super(TargetSelection,self).__getitem__(name.upper())
                 except KeyError:
@@ -127,10 +143,13 @@ class TargetSelection(Catalogue):
                 return wrapper
             return super(TargetSelection,self).__getattribute__(name)
 
-        def mask_maskbit(self,key_nobs='NOBS',key_maskbits='MASKBITS',nobs=True,bits=[1,5,6,7,11,12,13]):
+        def mask_maskbit(self,key_nobs='NOBS',key_maskbits='MASKBITS',nobs=True,bits=None):
             mask = self.trues()
             if nobs:
                 for b in self.bands: mask &= (self['{}_{}'.format(key_nobs,b)]>0)
+            if bits is None:
+                from desitarget.geomask import get_imaging_maskbits,get_imaging_maskbits
+                bits = get_imaging_maskbits(get_imaging_maskbits())
             for bit in bits:
                 mask &= (self[key_maskbits] & 2**bit) == 0
             return mask
@@ -146,10 +165,10 @@ class TargetSelection(Catalogue):
             if self.tracer == 'STAR':
                 mask = self['TYPE'] == 'PSF '
                 mask &= self['{}_G'.format(key_flux)] > star_gflux
-                return mask
+            return mask
 
         def mask_morphtype(self,morphtype):
-            return self['MORPHTYPE'] == morphtype
+            return self['MORPHTYPE'].astype(type(morphtype)) == morphtype
 
         @utils.saveplot()
         def plot_scatter(self,ax,prop1=None,prop2=None,propc=None,s=.2,vmin=None,vmax=None,color=None,xedges={},yedges={},title=None,clabel=None,**kwargs):

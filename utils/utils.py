@@ -177,8 +177,10 @@ def interp_digitized_statistics(new,indices,values=None,statistic='sum'):
     return toret[inverse]
 
 def mkdir(path):
-    try: os.makedirs(os.path.dirname(path)) #MPI...
-    except OSError: return
+    try:
+        os.makedirs(path) #MPI...
+    except OSError:
+        return
 
 def saveplot(giveax=True):
     def decorator(func):

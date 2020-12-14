@@ -38,9 +38,7 @@ class MCTool(object):
         if self.flux_mulbias.size == 1:
             self.flux_mulbias = np.ones(self.nbands)*self.flux_mulbias
 
-    def set_sel_params(self,ebvfac=1,Rv=None,sn_band_min=6,sn_flat_min=None,sn_red_min=None):
-        self.ebvfac = ebvfac
-        self.Rv = Rv
+    def set_sel_params(self,sn_band_min=6,sn_flat_min=None,sn_red_min=None):
         self.sn_band_min = sn_band_min
         self.sn_flat_min = sn_flat_min
         self.sn_red_min = sn_red_min
@@ -64,7 +62,7 @@ class MCTool(object):
         for ib,b in enumerate(self.bands):
             #print(flux_shifts[ib].shape,self.truth['FLUX_{}'.format(b)].shape,self.sim['MW_TRANSMISSION_{}'.format(b)].shape,self.flux_mulbias[ib].shape)
             self.sim['FLUX_{}'.format(b)] = self.truth['FLUX_{}'.format(b)]*self.sim['MW_TRANSMISSION_{}'.format(b)]*self.flux_mulbias[...,ib] + self.flux_adbias[...,ib] + flux_shifts[ib]
-        self.sim.set_estimated_transmission(ebvfac=self.ebvfac,Rv=self.Rv,key='EMW_TRANSMISSION')
+        #self.sim.set_estimated_transmission(ebvfac=self.ebvfac,Rv=self.Rv,key='EMW_TRANSMISSION')
         self.sim.set_estimated_flux(key='EFLUX',key_transmission='EMW_TRANSMISSION',key_flux='FLUX')
         #for b in self.bands:
         #    self.sim['EFLUX_{}'.format(b)] = self.truth['FLUX_{}'.format(b)]
@@ -97,7 +95,7 @@ class MCTool(object):
         new.__dict__.update(self.__dict__)
         return new
 
-    def map(self,catalogue,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift=None):
+    def map(self,catalogue,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift=None,set_transmission=False,ebvfac=1,Rv=None):
         mask = np.all([catalogue['{}_{}'.format(key_depth,b)]>0. for b in self.bands],axis=0)
         catalogue[key_efficiency] = catalogue.zeros()
         if key_redshift: catalogue[key_redshift] = -catalogue.ones()
@@ -109,8 +107,14 @@ class MCTool(object):
             flux_covariance = [1/catalogue['{}_{}'.format(key_depth,b)][i] for b in self.bands]
             #print([catalogue['{}_{}'.format(key_depth,b)][i] for b in self.bands])
             self.set_sim_params(flux_covariance=flux_covariance,flux_adbias=0.,flux_mulbias=1.)
-            self.sim['EBV'] = catalogue['EBV'][i]
-            self.sim.set_estimated_transmission(key='MW_TRANSMISSION')
+            if set_transmission:
+                self.sim['EBV'] = catalogue['EBV'][i]
+                self.sim.set_estimated_transmission(key='MW_TRANSMISSION')
+                self.sim.set_estimated_transmission(ebvfac=ebvfac,Rv=Rv,key='EMW_TRANSMISSION')
+            else:
+                for b in self.sim.bands:
+                    self.sim['MW_TRANSMISSION_{}'.format(b)] = catalogue['MW_TRANSMISSION_{}'.format(b)][i]
+                    self.sim['EMW_TRANSMISSION_{}'.format(b)] = catalogue['EMW_TRANSMISSION_{}'.format(b)][i]
             self()
             catalogue[key_efficiency][i] = self.get_efficiency()
             #print(catalogue[key_efficiency][i])
