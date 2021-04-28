@@ -182,10 +182,12 @@ class TargetSelection(Catalogue):
                 if clabel: cbar.set_label(prop if not isinstance(clabel,str) else clabel,rotation=90)
             ax.set_xlabel(prop1)
             ax.set_ylabel(prop2)
-            xlim = Binning(samples=self[prop1],**xedges).range
-            ylim = Binning(samples=self[prop2],**yedges).range
-            ax.set_xlim(xlim)
-            ax.set_ylim(ylim)
+            if xedges is not None:
+                xlim = Binning(samples=self[prop1],**xedges).range
+                ax.set_xlim(xlim)
+            if yedges is not None:
+                ylim = Binning(samples=self[prop2],**yedges).range
+                ax.set_ylim(ylim)
             ax.set_title(title)
 
         @utils.saveplot()

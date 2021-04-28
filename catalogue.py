@@ -367,7 +367,7 @@ class Catalogue(object):
         lbox = np.diff(self.box(position=position,axis=axis),axis=0)[0]
         return np.sqrt((lbox**2).sum(axis=0))
 
-    def mask_in_box(self,ramin, ramax, decmin, decmax):
+    def mask_in_box(self,ramin,ramax,decmin,decmax):
         if decmin < -90. or decmax > 90. or decmax <= decmin or ramax <= ramin:
                 raise ValueError('Strange input: [ramin, ramax, decmin, decmax] = {}'.format(radecbox))
         return ((self['RA'] >= ramin) & (self['RA'] < ramax) & (self['DEC'] >= decmin) & (self['DEC'] < decmax))
@@ -381,8 +381,8 @@ class Catalogue(object):
             else:
                 raise KeyError('There is no field {} in the data.'.format(name))
         else:
-            new = self.deepcopy()
-            new.columns = {field:self.columns[field][name] for field in self.fields}
+            import copy
+            new = self.__class__({field:self.columns[field][name] for field in self.fields},**copy.deepcopy(self.attrs))
             return new
 
     def __setitem__(self,name,item):

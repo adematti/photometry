@@ -67,6 +67,9 @@ def test_plot():
     mc()
     mc.plot_histo(path=dir_plot+'mctool.png')
 
-test_map()
-test_check()
-test_plot()
+
+if __name__ == '__main__':
+
+    test_map()
+    test_check()
+    test_plot()

@@ -20,4 +20,6 @@ def test_simple():
     weights = m.predict()
     assert np.allclose(dens.properties['EBV']/np.mean(dens.properties['EBV']),weights)
 
-test_simple()
+if __name__ == '__main__':
+
+    test_simple()

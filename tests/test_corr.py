@@ -80,10 +80,11 @@ def plot_power():
     corr.plot(path=dir_plot+'power.png',xscale='log',yscale='log')
 
 
-#print(utils.nside2resol(1024))
-#test_corr()
-test_corr_hp()
-test_RR()
-plot_corr()
-#test_power()
-#plot_power()
+if __name__ == '__main__':
+    #print(utils.nside2resol(1024))
+    #test_corr()
+    test_corr_hp()
+    test_RR()
+    plot_corr()
+    #test_power()
+    #plot_power()

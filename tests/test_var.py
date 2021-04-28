@@ -33,6 +33,9 @@ def test_binned():
     dens.plot_density_variations(path=dir_plot+'binned_density_variations_EBV_all.png',prop='EBV',histos=[dens])
     dens.plot_density_variations(path=dir_plot+'binned_density_variations_EBV.png',prop='EBV',xedges={'nbins':21,'range':[None,0.03]},histos=[dens])
 
-test_brick()
-test_healpix()
-test_binned()
+
+if __name__ == '__main__':
+
+    test_brick()
+    test_healpix()
+    test_binned()

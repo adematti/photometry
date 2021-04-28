@@ -236,6 +236,7 @@ def mpi_gather_array(data, comm, root=0):
     Gather the input data array from all ranks to the specified ``root``.
     This uses `Gatherv`, which avoids mpi4py pickling, and also
     avoids the 2 GB mpi4py limit for bytes using a custom datatype
+
     Parameters
     ----------
     data : array_like
@@ -357,6 +358,7 @@ def mpi_scatter_array(data, comm, root=0, counts=None):
     initially only on `root` (and `None` on other ranks).
     This uses ``Scatterv``, which avoids mpi4py pickling, and also
     avoids the 2 GB mpi4py limit for bytes using a custom datatype
+    
     Parameters
     ----------
     data : array_like or None

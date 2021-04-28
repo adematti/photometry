@@ -47,7 +47,9 @@ def test_plot_hsc():
     truth.plot_histo(path=dir_plot+'histo_redshift_hsc.png',prop='hsc_mizuki_photoz_best',xedges={'range':[0.,3.]},title=None)
 
 
-test_mpi()
-test_extinction()
-test_plot()
-test_plot_hsc()
+if __name__ == '__main__':
+
+    test_mpi()
+    test_extinction()
+    test_plot()
+    test_plot_hsc()
