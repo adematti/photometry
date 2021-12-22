@@ -1,13 +1,12 @@
 import numpy as np
+
 from photometry import *
 from paths import *
 
-setup_logging()
-
-data = TargetSelection.load_objects(path_data,region=None)
-randoms = TargetSelection.load_objects(path_randoms,region=None)
 
 def test_simple():
+    data = TargetSelection.load_objects(path_data,region=None)
+    randoms = TargetSelection.load_objects(path_randoms,region=None)
     dens = HealpixDensity(ref=randoms,nside=256)
     dens.set_randoms(randoms=randoms)
     dens.set_properties()
@@ -22,4 +21,5 @@ def test_simple():
 
 if __name__ == '__main__':
 
+    setup_logging()
     test_simple()

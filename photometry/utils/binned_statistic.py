@@ -1,5 +1,6 @@
 import copy
 import logging
+
 import numpy as np
 from scipy import stats
 
@@ -59,7 +60,7 @@ def digitize_dd(samples,weights=None,edges=None,nbins=10,ranges=None,quantiles=N
 
     return np.array(binnumbers),edges
 
-def prodprod(arr,start=[]):
+def prodprod(arr, start=[]):
     if len(arr) == 0: return np.array(start)
     toret = [arr[0]]
     for a in arr[1:]: toret.append(a*toret[-1])

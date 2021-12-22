@@ -261,6 +261,7 @@ class BrickDensity(TargetDensity):
         if weights in ['data','randoms']: weights = getattr(self,'brick'+weights,None)
         self.properties = Properties(self.brickid,self.ref,ids_catalogue=self.get_bricks(self.ref),weights=weights)
 
+
 class HealpixDensity(TargetDensity):
 
     logger = logging.getLogger('HealpixDensity')

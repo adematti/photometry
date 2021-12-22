@@ -55,7 +55,7 @@ class MCTool(object):
     def nbands(self):
         return len(self.bands)
 
-    def __call__(self):
+    def run(self):
         #print(self.truth.size,len(self.truth))
         flux_shifts = self.rng.multivariate_normal(mean=np.zeros(self.flux_covariance.shape[0],dtype='f8'),cov=self.flux_covariance,size=self.size).T
         #print(flux_shifts.shape)
@@ -95,7 +95,7 @@ class MCTool(object):
         new.__dict__.update(self.__dict__)
         return new
 
-    def map(self,catalogue,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift=None,set_transmission=False,ebvfac=1,Rv=None):
+    def predict(self,catalogue,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift=None,set_transmission=False,ebvfac=1,Rv=None):
         mask = np.all([catalogue['{}_{}'.format(key_depth,b)]>0. for b in self.bands],axis=0)
         catalogue[key_efficiency] = catalogue.zeros()
         if key_redshift: catalogue[key_redshift] = -catalogue.ones()
@@ -103,7 +103,7 @@ class MCTool(object):
         #print(ntot,catalogue.size)
         for ii,i in enumerate(np.flatnonzero(mask)):
             if ii % 1000 == 0:
-                self.logger.info('{:d}/{:d} = {:.4f} objects treated.'.format(ii,ntot,ii/ntot))
+                self.logger.info('{:d}/{:d} = {:.4f} rows treated.'.format(ii,ntot,ii/ntot))
             flux_covariance = [1/catalogue['{}_{}'.format(key_depth,b)][i] for b in self.bands]
             #print([catalogue['{}_{}'.format(key_depth,b)][i] for b in self.bands])
             self.set_sim_params(flux_covariance=flux_covariance,flux_adbias=0.,flux_mulbias=1.)
@@ -115,7 +115,7 @@ class MCTool(object):
                 for b in self.sim.bands:
                     self.sim['MW_TRANSMISSION_{}'.format(b)] = catalogue['MW_TRANSMISSION_{}'.format(b)][i]
                     self.sim['EMW_TRANSMISSION_{}'.format(b)] = catalogue['EMW_TRANSMISSION_{}'.format(b)][i]
-            self()
+            self.run()
             catalogue[key_efficiency][i] = self.get_efficiency()
             #print(catalogue[key_efficiency][i])
             if key_redshift: catalogue[key_redshift][i] = np.mean(self.sim['REDSHIFT'][self.sim.mask])

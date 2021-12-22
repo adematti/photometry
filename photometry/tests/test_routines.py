@@ -1,7 +1,10 @@
+import os
 import logging
 import argparse
+
 import numpy as np
 from matplotlib import pyplot as plt
+
 from photometry import *
 from paths import *
 
@@ -46,10 +49,11 @@ if type_save == 1:
     truth.mpi_gather(root=None)
     map = Catalogue.mpi_scatter(map,root=0,mask=mask)
     mc = MCTool(truth=truth,seed=42)
-    mc.set_sel_params(ebvfac=1,Rv=None,sn_band_min=6,sn_flat_min=None,sn_red_min=None)
-    mc.predict(map,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift='Z')
+    mc.set_sel_params(sn_band_min=6,sn_flat_min=None,sn_red_min=None)
+    mc.predict(map,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift='Z',set_transmission=True)
     map.mpi_gather(root=0)
     if comm.rank == 0: map.save(path_mctool)
+
 
 def get_weighted_density(data,randoms,weighted=False,divide=True,return_weights=False):
     props = ['EBV'] + ['GALDEPTH_{}'.format(b) for b in data.bands] + ['STARDENS'] +  ['PSFSIZE_{}'.format(b) for b in data.bands]
@@ -84,6 +88,7 @@ def get_weighted_density(data,randoms,weighted=False,divide=True,return_weights=
         dens /= weights
     if return_weights: return dens,weights
     return dens
+
 
 if type_plot == 1:
 
@@ -121,18 +126,18 @@ if type_plot == 1:
     lax = lax.flatten()
     for iax,prop in enumerate(props):
         dens.plot_property_map(ax=lax[iax],prop=prop,s=0.1,title=prop,clabel=False)
-    utils.savefig(path=dir_plot+'healpix_properties_{}GC.png'.format(region))
+    utils.savefig(path=os.path.join(dir_plot,'healpix_properties_{}GC.png'.format(region)))
 
     fig,lax = plt.subplots(ncols=4,nrows=2,sharex=False,sharey=True,figsize=(16,6))
     fig.subplots_adjust(hspace=0.4,wspace=0.2)
     lax = lax.flatten()
     for iax,prop in enumerate(props):
         dens.plot_density_variations(ax=lax[iax],others=others,prop=prop,histos=[dens],var_kwargs={'labels':labels if iax==0 else None},leg_kwargs={},xedges={'quantiles':[0.01,0.99]})
-    utils.savefig(path=dir_plot+'healpix_density_variations_{}GC.png'.format(region))
+    utils.savefig(path=os.path.join(dir_plot,'healpix_density_variations_{}GC.png'.format(region)))
 
     fig,lax = plt.subplots(ncols=len([dens] + others),nrows=1,sharex=True,sharey=True,figsize=(12,4))
     fig.subplots_adjust(hspace=0.4,wspace=0.4)
     lax = lax.flatten()
     for iax,dens in enumerate([dens] + others):
         dens.plot_density_map(ax=lax[iax],s=1,title=labels[iax],vmin=0,vmax=2)
-    utils.savefig(path=dir_plot+'healpix_density_map_{}GC.png'.format(region))
+    utils.savefig(path=os.path.join(dir_plot,'healpix_density_map_{}GC.png'.format(region)))

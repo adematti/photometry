@@ -1,12 +1,16 @@
 import os
 import logging
 import glob
+
+
 import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import fitsio
+
 from .catalogue import Catalogue
 from .utils import utils, Binning
+
 
 class TargetSelection(Catalogue):
 
@@ -23,21 +27,12 @@ class TargetSelection(Catalogue):
             self.region = region
             self.case_sensitive = case_sensitive
 
-        """
-        @mask.setter
-        def mask(self,x):
-            self['mask'] = x
-
-        @property
-        def mask(self):
-            return self['mask']
-        """
         @property
         def south(self):
             return self.region == 'S'
 
         @classmethod
-        def load_targets(cls,path_dir,quick=False,downsample=None,keep=None,**kwargs):
+        def load_targets(cls, path_dir, quick=False, downsample=None, keep=None, **kwargs):
             from desitarget import targetmask
             from desitarget.io import read_targets_in_box
             self = cls(**kwargs)
@@ -54,7 +49,7 @@ class TargetSelection(Catalogue):
             return self[mask]
 
         @classmethod
-        def load_objects(cls,path_objects,downsample=None,**kwargs):
+        def load_objects(cls,path_objects, downsample=None, **kwargs):
             self = cls(**kwargs)
             if isinstance(path_objects,list):
                 for path in path_objects: self += cls.load_objects(path,**kwargs)
@@ -104,8 +99,7 @@ class TargetSelection(Catalogue):
             return self['{}_{}'.format(key_flux,b)]/self['{}_{}'.format(key_transmission,b)]
 
         def set_ebv(self,key='EBV',key_ra='RA',key_dec='DEC'):
-            from desiutil import dust
-            self[key] = dust.ebv(self[key_ra],self[key_dec])
+            self[key] = utils.ebv(self[key_ra],self[key_dec])
 
         def set_flux_from_mag(self,key='FLUX'):
             for b in self.bands:
@@ -122,6 +116,13 @@ class TargetSelection(Catalogue):
         def set_estimated_flux(self,key='EFLUX',**kwargs):
             for b in self.bands:
                 self['{}_{}'.format(key,b)] = self.estimated_flux(b,**kwargs)
+
+        def __getstate__(self, **kwargs):
+            state = super(TargetSelection, self).__getstate__(**kwargs)
+            for name in ['tracer', 'radecbox', 'region', 'bands', 'case_sensitive']:
+                if hasattr(self, name):
+                    state[name] = getattr(self, name)
+            return state
 
         def __getitem__(self,name):
             try:

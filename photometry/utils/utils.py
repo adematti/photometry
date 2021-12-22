@@ -1,11 +1,13 @@
-import logging
 import os
 import time
 import json
 import functools
+import logging
+
 import numpy as np
-from scipy import constants,stats
+from scipy import constants, stats
 import matplotlib
+
 
 ###############################################################################
 # Physical quantities
@@ -99,8 +101,10 @@ def bin_ndarray(ndarray, new_shape, weights=None, operation=np.sum):
 
     return ndarray
 
+
 def overlap(a,b):
-    """Returns the indices for which a and b overlap.
+    """
+    Return the indices for which a and b overlap.
     Warning: makes sense if and only if a and b elements are unique.
     Taken from https://www.followthesheep.com/?p=1366.
     """
@@ -125,13 +129,16 @@ def overlap(a,b):
 
     return a1[inds_a], b1[inds_b]
 
+
 def isnaninf(array):
     """Is nan or inf."""
     return np.isnan(array) | np.isinf(array)
 
+
 def isnotnaninf(array):
     """Is not nan nor inf."""
     return ~isnaninf(array)
+
 
 def digitized_statistics(indices,values=None,statistic='sum'):
     """Return the array of same shape as indices, filled with the required statistics."""
@@ -146,6 +153,7 @@ def digitized_statistics(indices,values=None,statistic='sum'):
     statistics,_,binnumber = stats.binned_statistic(indices,values,statistic=statistic,bins=edges)
     return statistics[binnumber-1]
 
+
 def digitized_interp(ind1,ind2,val2,fill):
     """Return the array such that values of indices ind1 match val2 if ind1 in ind2, fill with fill otherwise."""
     val2 = np.asarray(val2)
@@ -157,12 +165,6 @@ def digitized_interp(ind1,ind2,val2,fill):
     tmp1[inter1] = tmp2[inter2] #fill with val2 corresponding to matching ind1 and ind2
     return tmp1[inverse1]
 
-'''
-def interp_digitized_statistics(new,indices,fill,values=None,statistic='sum'):
-    """Return the array of same shape as new, filled with the required statistics."""
-    stats = digitized_statistics(indices,values=values,statistic=statistic)
-    return digitized_interp(new,indices,stats,fill)
-'''
 
 def interp_digitized_statistics(new,indices,values=None,statistic='sum'):
     """Return the array of same shape as new, filled with the required statistics."""
@@ -207,19 +209,22 @@ def saveplot(giveax=True):
 
 def savefig(path,bbox_inches='tight',pad_inches=0.1,dpi=200,**kwargs):
     """Save matplotlib figure."""
-    mkdir(path)
+    mkdir(os.path.dirname(path))
     logger.info('Saving figure to {}.'.format(path))
     matplotlib.pyplot.savefig(path,bbox_inches=bbox_inches,pad_inches=pad_inches,dpi=dpi,**kwargs)
     matplotlib.pyplot.close(matplotlib.pyplot.gcf())
+
 
 def allnone(li):
     for el in li:
         if el is not None: return False
     return True
 
+
 def get_mpi_comm():
     from mpi4py import MPI
     return MPI.COMM_WORLD
+
 
 def set_mpi_comm(func):
     @functools.wraps(func)
@@ -229,6 +234,32 @@ def set_mpi_comm(func):
         kwargs['comm'] = comm
         return func(*args,**kwargs)
     return wrapper
+
+
+def local_size(size, comm):
+    """
+    Divide global ``size`` into local (process) size.
+
+    Parameters
+    ----------
+    size : int
+        Global size.
+
+    comm : MPI communicator
+        The MPI communicator.
+
+    Returns
+    -------
+    localsize : int
+        Local size. Sum of local sizes over all processes equals global size.
+    """
+    start = comm.rank * size // comm.size
+    stop = (comm.rank + 1) * size // comm.size
+    localsize = stop - start
+    #localsize = size // comm.size
+    #if comm.rank < size % comm.size: localsize += 1
+    return localsize
+
 
 def mpi_gather_array(data, comm, root=0):
     """
@@ -253,8 +284,17 @@ def mpi_gather_array(data, comm, root=0):
     """
     from mpi4py import MPI
     if root is None: root = Ellipsis
+
+    if np.isscalar(data):
+        if root == Ellipsis:
+            return np.array(comm.allgather(data))
+        gathered = comm.gather(data, root=root)
+        if comm.rank == root:
+            return np.array(gathered)
+        return None
+
     if not isinstance(data, np.ndarray):
-        raise ValueError("`data` must by numpy array in gather_array")
+        raise ValueError('`data` must be numpy array in gather_array')
 
     # need C-contiguous order
     if not data.flags['C_CONTIGUOUS']:
@@ -271,11 +311,11 @@ def mpi_gather_array(data, comm, root=0):
         # check for structured data mismatch
         names = set(dtypes[0].names)
         if any(set(dt.names) != names for dt in dtypes[1:]):
-            raise ValueError("mismatch between data type fields in structured data")
+            raise ValueError('mismatch between data type fields in structured data')
 
         # check for 'O' data types
         if any(dtypes[0][name] == 'O' for name in dtypes[0].names):
-            raise ValueError("object data types ('O') not allowed in structured data in GatherArray")
+            raise ValueError('object data types ("O") not allowed in structured data in gather_array')
 
         # compute the new shape for each rank
         newlength = comm.allreduce(local_length)
@@ -289,7 +329,7 @@ def mpi_gather_array(data, comm, root=0):
             recvbuffer = None
 
         for name in dtypes[0].names:
-            d = GatherArray(data[name], comm, root=root)
+            d = gather_array(data[name], root=root, comm=comm)
             if root is Ellipsis or comm.rank == root:
                 recvbuffer[name] = d
 
@@ -297,7 +337,7 @@ def mpi_gather_array(data, comm, root=0):
 
     # check for 'O' data types
     if dtypes[0] == 'O':
-        raise ValueError("object data types ('O') not allowed in structured data in GatherArray")
+        raise ValueError('object data types ("O") not allowed in structured data in gather_array')
 
     # check for bad dtypes and bad shapes
     if root is Ellipsis or comm.rank == root:
@@ -306,12 +346,13 @@ def mpi_gather_array(data, comm, root=0):
     else:
         bad_shape = None; bad_dtype = None
 
-    bad_shape, bad_dtype = comm.bcast((bad_shape, bad_dtype))
+    if root is not Ellipsis:
+        bad_shape, bad_dtype = comm.bcast((bad_shape, bad_dtype),root=root)
 
     if bad_shape:
-        raise ValueError("mismatch between shape[1:] across ranks in GatherArray")
+        raise ValueError('mismatch between shape[1:] across ranks in gather_array')
     if bad_dtype:
-        raise ValueError("mismatch between dtypes across ranks in GatherArray")
+        raise ValueError('mismatch between dtypes across ranks in gather_array')
 
     shape = data.shape
     dtype = data.dtype
@@ -351,6 +392,7 @@ def mpi_gather_array(data, comm, root=0):
 
     return recvbuffer
 
+
 def mpi_scatter_array(data, comm, root=0, counts=None):
     """
     Taken from https://github.com/bccp/nbodykit/blob/master/nbodykit/utils.py
@@ -358,7 +400,7 @@ def mpi_scatter_array(data, comm, root=0, counts=None):
     initially only on `root` (and `None` on other ranks).
     This uses ``Scatterv``, which avoids mpi4py pickling, and also
     avoids the 2 GB mpi4py limit for bytes using a custom datatype
-    
+
     Parameters
     ----------
     data : array_like or None
@@ -374,23 +416,22 @@ def mpi_scatter_array(data, comm, root=0, counts=None):
     recvbuffer : array_like
         the chunk of `data` that each rank gets
     """
-    import logging
     from mpi4py import MPI
     if counts is not None:
         counts = np.asarray(counts, order='C')
         if len(counts) != comm.size:
-            raise ValueError("counts array has wrong length!")
+            raise ValueError('counts array has wrong length!')
 
     # check for bad input
     if comm.rank == root:
         bad_input = not isinstance(data, np.ndarray)
     else:
         bad_input = None
-    bad_input = comm.bcast(bad_input)
+    bad_input = comm.bcast(bad_input, root=root)
     if bad_input:
-        raise ValueError("`data` must by numpy array on root in ScatterArray")
+        raise ValueError('`data` must by numpy array on root in scatter_array')
 
-    if comm.rank == 0:
+    if comm.rank == root:
         # need C-contiguous order
         if not data.flags['C_CONTIGUOUS']:
             data = np.ascontiguousarray(data)
@@ -399,16 +440,16 @@ def mpi_scatter_array(data, comm, root=0, counts=None):
         shape_and_dtype = None
 
     # each rank needs shape/dtype of input data
-    shape, dtype = comm.bcast(shape_and_dtype)
+    shape, dtype = comm.bcast(shape_and_dtype, root=root)
 
     # object dtype is not supported
     fail = False
     if dtype.char == 'V':
-         fail = any(dtype[name] == 'O' for name in dtype.names)
+        fail = any(dtype[name] == 'O' for name in dtype.names)
     else:
         fail = dtype == 'O'
     if fail:
-        raise ValueError("'object' data type not supported in ScatterArray; please specify specific data type")
+        raise ValueError('"object" data type not supported in scatter_array; please specify specific data type')
 
     # initialize empty data on non-root ranks
     if comm.rank != root:
@@ -425,13 +466,10 @@ def mpi_scatter_array(data, comm, root=0, counts=None):
     newshape = list(shape)
 
     if counts is None:
-        newlength = shape[0] // comm.size
-        if comm.rank < shape[0] % comm.size:
-            newlength += 1
-        newshape[0] = newlength
+        newshape[0] = newlength = local_size(shape[0], comm=comm)
     else:
         if counts.sum() != shape[0]:
-            raise ValueError("the sum of the `counts` array needs to be equal to data length")
+            raise ValueError('the sum of the `counts` array needs to be equal to data length')
         newshape[0] = counts[comm.rank]
 
     # the return array
@@ -448,9 +486,10 @@ def mpi_scatter_array(data, comm, root=0, counts=None):
 
     # do the scatter
     comm.Barrier()
-    comm.Scatterv([data, (counts, offsets), dt], [recvbuffer, dt])
+    comm.Scatterv([data, (counts, offsets), dt], [recvbuffer, dt], root=root)
     dt.Free()
     return recvbuffer
+
 
 _logging_handler = None
 

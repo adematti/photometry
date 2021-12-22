@@ -29,4 +29,3 @@ See the [LICENSE](https://github.com/adematti/obiwan/blob/master/LICENSE).
 - fitsio
 - mpi4py
 - healpy
-- nbodykit

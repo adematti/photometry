@@ -1,8 +1,9 @@
+import os
 import numpy as np
+
 from photometry import *
 from paths import *
 
-setup_logging()
 
 def get_truth():
     truth = TargetSelection.load_objects(path_truth,tracer='ELG',region=None,case_sensitive=False)
@@ -15,6 +16,7 @@ def get_truth():
     #print((~mask).sum(),(m & ~mask).sum())
     truth = truth[mask]
     return truth
+
 
 def test_map():
     #print(mc.truth.mask.sum())
@@ -30,15 +32,16 @@ def test_map():
         truth = None
         map = None
         mask = None
-    truth = Catalogue.mpi_scatter(truth,root=0)
+    truth = truth.mpi_scatter(truth,root=0)
     truth.mpi_gather(root=None)
-    map = Catalogue.mpi_scatter(map,root=0,mask=mask)
+    map = map.mpi_scatter(map,root=0,mask=mask)
     #hp.to_nbodykit()
     mc = MCTool(truth=truth,seed=42)
     mc.set_sel_params(sn_band_min=6,sn_flat_min=None,sn_red_min=None)
-    mc.map(map,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift='Z',set_transmission=True)
+    mc.predict(map,key_depth='PSFDEPTH',key_efficiency='MCEFF',key_redshift='Z',set_transmission=True)
     map.mpi_gather(root=0)
     #if comm.rank == 0: map.save(path_mctool)
+
 
 def test_check():
     truth = get_truth()
@@ -49,11 +52,12 @@ def test_check():
     mc.sim.set_estimated_transmission(key='EMW_TRANSMISSION')
     #print(mc.sim['MW_TRANSMISSION_G'])
     mc.set_sel_params(sn_band_min=0,sn_flat_min=None,sn_red_min=None)
-    mc()
+    mc.run()
     for b in mc.bands:
         assert np.all(mc.sim['EFLUX_{}'.format(b)] == mc.sim['FLUX_{}'.format(b)])
         assert np.all(mc.sim['EFLUX_{}'.format(b)] == mc.truth['FLUX_{}'.format(b)])
     print(mc.get_efficiency()) # round-off errors
+
 
 def test_plot():
     truth = get_truth()
@@ -64,12 +68,13 @@ def test_plot():
     mc.sim.set_estimated_transmission(key='EMW_TRANSMISSION')
     #print(mc.sim['MW_TRANSMISSION_G'])
     mc.set_sel_params(sn_band_min=6,sn_flat_min=None,sn_red_min=None)
-    mc()
-    mc.plot_histo(path=dir_plot+'mctool.png')
+    mc.run()
+    mc.plot_histo(path=os.path.join(dir_plot, 'mctool.png'))
 
 
 if __name__ == '__main__':
 
+    setup_logging()
     test_map()
     test_check()
     test_plot()

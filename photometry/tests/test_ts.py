@@ -1,8 +1,11 @@
+import os
 import numpy as np
+
 from photometry import *
 from paths import *
 
 setup_logging()
+
 
 def test_mpi():
     comm = utils.get_mpi_comm()
@@ -26,6 +29,7 @@ def test_extinction():
     for b in data.bands:
         assert np.allclose(data['MW_TRANSMISSION_{}'.format(b)],data['EMW_TRANSMISSION_{}'.format(b)])
 
+
 def test_plot():
     data = TargetSelection.load_objects(path_data,region=None)
     data.plot_scatter(path=dir_plot+'map_data.png',prop1='RA',prop2='DEC',s=.2,title=None)
@@ -33,8 +37,9 @@ def test_plot():
     data.set_mag_from_flux(key_flux='EFLUX')
     data['G-R'] = data['G']-data['R']
     data['R-Z'] = data['R']-data['Z']
-    data.plot_scatter(path=dir_plot+'color_data_ts.png',prop1='R-Z',prop2='G-R',s=2,title=None)
-    data.plot_histo(path=dir_plot+'histo_EBV_data.png',prop='EBV',title=None)
+    data.plot_scatter(path=os.path.join(dir_plot,'color_data_ts.png'),prop1='R-Z',prop2='G-R',s=2,title=None)
+    data.plot_histo(path=os.path.join(dir_plot,'histo_EBV_data.png'),prop='EBV',title=None)
+
 
 def test_plot_hsc():
     truth = TargetSelection.load_objects(path_truth,tracer='ELG',region=None,case_sensitive=False)
@@ -43,8 +48,8 @@ def test_plot_hsc():
     print(truth.fields)
     truth['G-R'] = truth['G']-truth['R']
     truth['R-Z'] = truth['R']-truth['Z']
-    truth.plot_map(path=dir_plot+'color_hsc_ts.png',prop1='R-Z',prop2='G-R',propc='hsc_mizuki_photoz_best',xlim=[-1.,2.],ylim=[-0.5,2.],s=2,title=None)
-    truth.plot_histo(path=dir_plot+'histo_redshift_hsc.png',prop='hsc_mizuki_photoz_best',xedges={'range':[0.,3.]},title=None)
+    truth.plot_scatter(path=os.path.join(dir_plot,'color_hsc_ts.png'),prop1='R-Z',prop2='G-R',propc='hsc_mizuki_photoz_best',xedges={'range':[-1.,2.]},yedges={'range':[-0.5,2.]},s=2,title=None)
+    truth.plot_histo(path=os.path.join(dir_plot,'histo_redshift_hsc.png'),prop='hsc_mizuki_photoz_best',xedges={'range':[0.,3.]},title=None)
 
 
 if __name__ == '__main__':

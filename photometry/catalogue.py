@@ -1,12 +1,16 @@
 import os
+import logging
+
 import numpy as np
 from scipy import constants
 import fitsio
-import logging
+
 from .utils import utils
+
 
 def distance(position,axis=-1):
     return np.sqrt((position**2).sum(axis=axis))
+
 
 def cartesian_to_sky(position,wrap=True,degree=True):
     """Transform cartesian coordinates into distance, RA, Dec.
@@ -36,6 +40,7 @@ def cartesian_to_sky(position,wrap=True,degree=True):
     dec = np.arcsin(position[:,2]/dist)
     if degree: return dist,ra/constants.degree,dec/constants.degree
     return dist,ra,dec
+
 
 def sky_to_cartesian(dist,ra,dec,degree=True,dtype=None):
     """Transform distance, RA, Dec into cartesian coordinates.
@@ -68,12 +73,12 @@ def sky_to_cartesian(dist,ra,dec,degree=True,dtype=None):
     position[2] = np.sin(dec*conversion)
     return (dist*np.asarray(position,dtype=dtype)).T
 
+
 class Catalogue(object):
 
     logger = logging.getLogger('Catalogue')
 
     def __init__(self,columns={},fields=None,**attrs):
-
         self.columns = {}
         if fields is None: fields = columns.keys()
         for key in fields:
@@ -107,10 +112,14 @@ class Catalogue(object):
     def keep(self,keep=None,remove=[]):
         return self.__class__(self.to_dict(keep=keep,remove=remove))
 
-    def getstate(self,keep=None,remove=[]):
-        return {'columns':self.to_dict(keep=keep,remove=remove),'attrs':self.attrs}
+    def __getstate__(self,keep=None,remove=[]):
+        state = {'columns':self.to_dict(keep=keep,remove=remove)}
+        for name in ['attrs', 'header']:
+            if hasattr(self, name):
+                state[name] = getattr(self, name)
+        return state
 
-    def setstate(self,state):
+    def __setstate__(self,state):
         self.__dict__.update(state)
 
     @classmethod
@@ -129,8 +138,8 @@ class Catalogue(object):
     def load_fits(cls,path,keep=None,**kwargs):
         self = cls()
         self.logger.info('Loading catalogue {}.'.format(path))
-        array,header = fitsio.read(path,header=True,**kwargs)
-        self = cls.from_array(array,keep=keep)
+        array, header = fitsio.read(path, header=True, columns=keep, **kwargs)
+        self = cls.from_array(array)
         self.header = header
         return self
 
@@ -149,14 +158,14 @@ class Catalogue(object):
         except IOError:
             raise IOError('Invalid path: {}.'.format(path))
             cls.logger.info('Loading {}: {}.'.format(cls.__name__,path))
-        self = cls.loadstate(state).keep(keep=keep)
+        self = cls.from_state(state).keep(keep=keep)
 
     @utils.set_mpi_comm
     def save_npy(self,save,keep=None,remove=[],comm=None,root=0):
         if comm.rank == root:
             self.logger.info('Saving {} to {}.'.format(self.__class__.__name__,save))
-            utils.mkdir(save)
-            np.save(save,self.getstate(keep=keep,remove=remove))
+            utils.mkdir(os.path.dirname(save))
+            np.save(save,self.__getstate__(keep=keep,remove=remove))
 
     @utils.set_mpi_comm
     def save_fits(self,save,keep=None,remove=[],comm=None,root=0,**kwargs):
@@ -188,34 +197,8 @@ class Catalogue(object):
         attrs.update(kwargs)
         return cls(columns=columns,**attrs)
 
-    """
     def to_nbodykit(self,keep=None,remove=[]):
-
-        from nbodykit.base.catalog import CatalogSource
-        from nbodykit import CurrentMPIComm
-
-        comm = CurrentMPIComm.get()
-        if comm.rank == 0:
-            source = self.keep(keep=keep,remove=remove)
-        else:
-            source = None
-        source = comm.bcast(source)
-
-        # compute the size
-        #print('size',comm.size)
-        start = comm.rank * source.size // comm.size
-        end = (comm.rank + 1) * source.size // comm.size
-
-        new = object.__new__(CatalogSource)
-        new._size = end - start
-        CatalogSource.__init__(new,comm=comm)
-        for key in source.fields:
-            new[key] = new.make_column(source[key])[start:end]
-        new.attrs.update(source.attrs)
-
-        return new
-    """
-    def to_nbodykit(self,keep=None,remove=[]):
+        # Call mpi_scatter first
 
         from nbodykit.base.catalog import CatalogSource
         from nbodykit import CurrentMPIComm
@@ -231,23 +214,24 @@ class Catalogue(object):
 
     @classmethod
     @utils.set_mpi_comm
-    def mpi_scatter(cls,self,root=0,comm=None,mask=None,counts=None):
+    def mpi_scatter(cls, self, root=0, comm=None, mask=None, counts=None):
         if comm.rank == root:
             if self is None:
-                self,fields,size = None,None,None
+                self, fields, size = None,None,None
                 columns = {}
             else:
-                fields,size,columns = self.fields,self.size,self.columns
-                delattr(self,'columns')
+                fields, size, columns = self.fields, self.size, self.columns
+                self = self.copy()
+                self.columns = {}
                 if mask is not None:
                     if isinstance(mask[0],np.bool_):
                         mask = np.flatnonzero(mask)
                     if not np.all(np.diff(mask) >= 0):
                         raise ValueError('You should pass a sorted mask array.')
-                    indices = np.array_split(mask,comm.size)
+                    indices = np.array_split(mask, comm.size)
                     counts = np.diff([0] + [index.max()+1 for index in indices[:-1]] + [size])
         else:
-            self,fields,size,counts = None,None,None,None
+            self, fields, size, counts = None,None,None,None
             columns = {}
         self = comm.bcast(self)
         if self is None: return None
@@ -255,62 +239,13 @@ class Catalogue(object):
         size = comm.bcast(size)
         counts = comm.bcast(counts)
         #print(counts)
-        self.columns = {field:utils.mpi_scatter_array(columns.get(field,None),comm=comm,root=root,counts=counts) for field in fields}
+        self.columns = {field:utils.mpi_scatter_array(columns.get(field,None), comm=comm, root=root, counts=counts) for field in fields}
         return self
 
     @utils.set_mpi_comm
     def mpi_gather(self,root=0,comm=None):
         for key in self:
             self[key] = utils.mpi_gather_array(self[key],comm,root=root)
-
-    """
-    @utils.mpi_comm
-    def scatter_mpi(self,mask=None,comm=None):
-        # compute the size
-        if mask is None:
-            mask = np.arange(self.size)
-        if isinstance(mask[0],np.bool_):
-            mask = np.flatnonzero(mask)
-        if not np.all(np.diff(mask) >= 0):
-            raise ValueError('You should pass a sorted mask array.')
-        indices = np.array_split(mask,comm.size)
-        ends = [index.max()+1 for index in indices[:-1]] + [-1]
-        starts = [0] + ends[:-1]
-        start = starts[comm.rank]
-        end = ends[comm.rank]
-        print(start,end)
-        for key in self:
-            self[key] = self[key][start:end]
-        self.comm = comm
-    """
-    '''
-    def scatter_mpi(self):
-        from mpi4py import MPI
-        comm = MPI.COMM_WORLD
-        # compute the size
-        start = comm.rank * self.size // comm.size
-        end = (comm.rank + 1) * self.size // comm.size
-        for key in self:
-            self[key] = self[key][start:end]
-        self.comm = comm
-        #return source
-        """
-        if comm.rank == 0:
-            source = self.keep(keep=keep,remove=remove)
-        else:
-            source = None
-        source = comm.bcast(source)
-
-        new = object.__new__(self.__class__)
-        new.__dict__.update(source.__dict__)
-        #print(start,end,comm.size)
-        for key in source.fields:
-            new[key] = source[key][start:end]
-        new.attrs.update(source.attrs)
-        new.comm = comm
-        return new
-        """
-    '''
 
     def shuffle(self,fields=None,seed=None):
         if fields is None: fields = self.fields
@@ -343,7 +278,7 @@ class Catalogue(object):
         return sky_to_cartesian(distance=self[distance],ra=self[ra],dec=self[dec],degree=degree,dtype=dtype)
 
     def footprintsize(self,ra='RA',dec='DEC',position=None,degree=True):
-        # WARNING: assums footprint does not cross RA = 0
+        # WARNING: assumes footprint does not cross RA = 0
         if position is not None:
             degree = False
             _,ra,dec = cartesian_to_sky(position=self[position],wrap=True,degree=degree)
@@ -381,8 +316,8 @@ class Catalogue(object):
             else:
                 raise KeyError('There is no field {} in the data.'.format(name))
         else:
-            import copy
-            new = self.__class__({field:self.columns[field][name] for field in self.fields},**copy.deepcopy(self.attrs))
+            new = self.copy()
+            for field in self.fields: new[field] = new[field][name]
             return new
 
     def __setitem__(self,name,item):
@@ -398,7 +333,7 @@ class Catalogue(object):
     def __delitem__(self,name):
         del self.columns[name]
 
-    def    __contains__(self,name):
+    def __contains__(self,name):
         return name in self.columns
 
     def __iter__(self):
@@ -442,23 +377,27 @@ class Catalogue(object):
         else: return self.__add__(other)
 
     def __add__(self,other):
-        new = {}
-        fields = [field for field in self.fields if field in other.fields]
-        for field in fields:
-            new[field] = np.concatenate([self[field],other[field]],axis=0)
-        import copy
+        new = self.copy()
         attrs = copy.deepcopy(self.attrs)
         attrs.update(copy.deepcopy(other.attrs))
-        return self.__class__(new,fields=fields,**attrs)
+        new.attrs = attrs
+        new.columns = {}
+        fields = [field for field in self.fields if field in other.fields]
+        for field in fields:
+            new[field] = np.concatenate([self[field], other[field]], axis=0)
+        return new
 
     @classmethod
-    def loadstate(cls,state):
+    def from_state(cls, state):
         self = cls()
-        self.setstate(state)
+        self.__setstate__(state)
         return self
 
     def copy(self):
-        return self.__class__.loadstate(self.getstate())
+        new = self.__class__.__new__(self.__class__)
+        new.__dict__.update(self.__dict__)
+        new.columns = self.columns.copy()
+        return new
 
     def deepcopy(self):
         import copy
