@@ -8,17 +8,17 @@ the [Legacy Survey](https://www.legacysurvey.org/). Especially, it includes:
 - `models.py`: so far, linear template regression model
 - `MCtool.py`: tool to forward model the impact of photometric errors onto target density, can run in parallel with MPI
 - `density_variations.py`: classes to plot variations of the target density with respect to photometric templates, with HEALPix, bricks, and direct data/randoms comparison
-- `correlation_function.py`: classes to compute and plot the angular correlation function and power spectrum
+- `angular_power.py`: classes to compute and plot the angular power spectrum
 Documentation can be provided on request.
 
 ## Tests
 
-All tests are in tests/. NERSC notebooks are in NERSC/.
+All tests are in tests/.
 They can be run straightforwardly on [JupyterHub](https://jupyter.nersc.gov/hub/home).
 
 ## License
 
-See the [LICENSE](https://github.com/adematti/obiwan/blob/master/LICENSE).
+See the [LICENSE](https://github.com/adematti/photometry/blob/main/LICENSE).
 
 ## Requirements
 
